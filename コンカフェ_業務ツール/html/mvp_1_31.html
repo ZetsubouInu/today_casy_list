@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MVPメーカー (1日〜31日 新仕様・微調整版)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+<style>
+    body {
+        font-family: 'Shippori Mincho', serif;
+        font-weight: 800;
+        background-color: #f0f2f5;
+        padding: 20px;
+        margin: 0;
+    }
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 20px; }
+    
+    .controls, .actions {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    label { display: block; margin-bottom: 10px; }
+    
+    button {
+        font-family: 'Shippori Mincho', serif;
+        font-weight: 800;
+        padding: 12px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    button:hover { background-color: #0056b3; }
+    .btn-generate { background-color: #ff9800; }
+    .btn-generate:hover { background-color: #e68a00; }
+    .btn-download { background-color: #28a745; display: none; }
+    .btn-download:hover { background-color: #218838; }
+
+    /* 31個のグリッドプレビュー */
+    .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    .grid-item {
+        width: calc(16% - 8px); 
+        aspect-ratio: 206 / 256;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        background-color: #fff;
+        overflow: hidden;
+        position: relative;
+        text-align: center;
+    }
+    @media (max-width: 600px) {
+        .grid-item { width: calc(25% - 8px); }
+    }
+    .grid-item:hover { border-color: #007bff; background-color: #f8f9fa; }
+    .grid-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 1;
+    }
+    .grid-item .overlay {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        font-size: 10px;
+        padding: 4px 0;
+        z-index: 2;
+    }
+    .grid-item .coming-soon { color: #888; font-size: 12px; }
+
+    /* モーダル */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .cropper-container {
+        width: 100%;
+        max-height: 400px;
+        margin-bottom: 15px;
+        background-color: #eee;
+    }
+    .cropper-container img { max-width: 100%; }
+    
+    input[type="text"] {
+        font-family: 'Shippori Mincho', serif;
+        font-weight: 800;
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    #previewCanvas {
+        display: none;
+        width: 100%;
+        max-width: 400px;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MVPメーカー (1日〜31日 新仕様)</h1>
+
+    <div class="controls">
+        <label>背景画像 (1080×1920固定)</label>
+        <input type="file" id="bgInput" accept="image/*">
+        <p style="font-size: 12px; color: #666; margin-top: 5px; font-weight: normal;">※一度選択すると記憶されます</p>
+    </div>
+
+    <div class="grid" id="gridContainer"></div>
+
+    <div class="actions">
+        <button class="btn-generate" id="generateBtn">画像を生成する</button>
+        <div style="text-align: center;">
+            <canvas id="previewCanvas" width="1080" height="1920"></canvas>
+        </div>
+        <button class="btn-download" id="downloadBtn">画像をダウンロード</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2 id="modalTitle" style="font-size: 18px; margin-top: 0;"></h2>
+        <label>キャスト写真を選択</label>
+        <input type="file" id="castInput" accept="image/*" style="margin-bottom: 15px; display: block;">
+        
+        <div class="cropper-container">
+            <img id="cropperImage" src="">
+        </div>
+        
+        <label>名前</label>
+        <input type="text" id="nameInput" placeholder="キャスト名を入力">
+        
+        <button id="saveMvpBtn">この日のMVPを保存</button>
+        <button id="clearMvpBtn" style="background-color: #dc3545;">データをクリア</button>
+        <button id="closeModalBtn" style="background-color: #6c757d;">キャンセル</button>
+    </div>
+</div>
+
+<script>
+    const TOTAL_DAYS = 31;
+    const CANVAS_W = 1080;
+    const CANVAS_H = 1920;
+    
+    // 写真読み込みのクロップ比率 (206:185)
+    const CROP_W = 206;
+    const CROP_H = 185;
+
+    let mvpData = JSON.parse(localStorage.getItem('savedMvpData_new31_mod2')) || new Array(TOTAL_DAYS).fill(null);
+    let bgImageSrc = localStorage.getItem('savedMvpBg_new31_mod2');
+    let currentIndex = -1;
+    let cropper = null;
+
+    const gridContainer = document.getElementById('gridContainer');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const castInput = document.getElementById('castInput');
+    const cropperImage = document.getElementById('cropperImage');
+    const nameInput = document.getElementById('nameInput');
+
+    function renderGrid() {
+        gridContainer.innerHTML = '';
+        for (let i = 0; i < TOTAL_DAYS; i++) {
+            const div = document.createElement('div');
+            div.className = 'grid-item';
+            div.onclick = () => openModal(i);
+            
+            const data = mvpData[i];
+            const currentDay = i + 1;
+            
+            if (data && data.image) {
+                const img = document.createElement('img');
+                img.src = data.image;
+                const overlay = document.createElement('div');
+                overlay.className = 'overlay';
+                overlay.textContent = `day${currentDay} : ${data.name || '名前なし'}`;
+                div.appendChild(img);
+                div.appendChild(overlay);
+            } else {
+                const p = document.createElement('span');
+                p.className = 'coming-soon';
+                p.innerHTML = `day${currentDay}<br>coming soon`;
+                div.appendChild(p);
+            }
+            gridContainer.appendChild(div);
+        }
+    }
+    renderGrid();
+
+    document.getElementById('bgInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            bgImageSrc = event.target.result;
+            try {
+                localStorage.setItem('savedMvpBg_new31_mod2', bgImageSrc);
+            } catch(e) {}
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function openModal(index) {
+        currentIndex = index;
+        modalTitle.textContent = `day${index + 1} のMVP設定`;
+        const data = mvpData[index];
+        nameInput.value = data ? data.name : '';
+        cropperImage.src = '';
+        if (cropper) { cropper.destroy(); cropper = null; }
+        castInput.value = '';
+        modalOverlay.style.display = 'flex';
+    }
+
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+        modalOverlay.style.display = 'none';
+        if (cropper) { cropper.destroy(); cropper = null; }
+    });
+
+    castInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            cropperImage.src = event.target.result;
+            if (cropper) { cropper.destroy(); cropper = null; }
+            cropper = new Cropper(cropperImage, {
+                aspectRatio: CROP_W / CROP_H,
+                viewMode: 1,
+                autoCropArea: 1
+            });
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById('saveMvpBtn').addEventListener('click', () => {
+        let imageData = mvpData[currentIndex] ? mvpData[currentIndex].image : null;
+        if (cropper) {
+            const canvas = cropper.getCroppedCanvas({ width: CROP_W, height: CROP_H });
+            if (canvas) { imageData = canvas.toDataURL('image/jpeg', 0.85); }
+        }
+        mvpData[currentIndex] = { image: imageData, name: nameInput.value };
+        try { localStorage.setItem('savedMvpData_new31_mod2', JSON.stringify(mvpData)); } catch (e) {}
+        renderGrid();
+        modalOverlay.style.display = 'none';
+    });
+
+    document.getElementById('clearMvpBtn').addEventListener('click', () => {
+        mvpData[currentIndex] = null;
+        try { localStorage.setItem('savedMvpData_new31_mod2', JSON.stringify(mvpData)); } catch (e) {}
+        renderGrid();
+        modalOverlay.style.display = 'none';
+    });
+
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(`画像読み込み失敗: ${src}`);
+            img.src = src;
+        });
+    }
+
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+
+    generateBtn.addEventListener('click', async () => {
+        if (!bgImageSrc) {
+            alert('最初に背景画像を選択してください。');
+            return;
+        }
+
+        generateBtn.textContent = '生成中...';
+        
+        try {
+            await document.fonts.ready;
+
+            // 新規素材を読み込み
+            const frameImg = await loadImage('../assets/frame_31.png');
+            const pictureBgImg = await loadImage('../assets/picture_bg_31.png');
+            const logoImg = await loadImage('../assets/logo_31.png');
+            const bgImg = await loadImage(bgImageSrc);
+
+            ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.drawImage(bgImg, 0, 0, CANVAS_W, CANVAS_H);
+
+            // 背景底面からのY座標リスト
+            const bottomDistances = [1312, 1045, 778, 511, 244, 21];
+
+            // 描画ループ (0〜30)
+            for (let i = 0; i < TOTAL_DAYS; i++) {
+                const isRow6 = i >= 25; // 6列目の判定
+                const row = isRow6 ? 5 : Math.floor(i / 5);
+                const col = isRow6 ? (i - 25) : (i % 5);
+
+                const scale = isRow6 ? 0.83 : 1.0;
+                
+                // 現在の枠・画像のサイズ
+                const currentFW = 206 * scale;
+                const currentFH = 256 * scale;
+                const currentCW = 206 * scale;
+                const currentCH = 185 * scale;
+
+                // --- 修正箇所：X座標の計算 ---
+                // 左端から5px。間隔は1〜5列目が10px、6列目が8.3px
+                const currentGapX = isRow6 ? 8.3 : 10;
+                const x = 5 + col * (currentFW + currentGapX);
+                // -----------------------------
+                
+                // Y座標: (背景H) - (底からの距離) - (現在のフレームH)
+                const bottomY = bottomDistances[row];
+                const y = CANVAS_H - bottomY - currentFH;
+
+                const currentDay = i + 1;
+                const data = mvpData[i];
+
+                // 1. picture_bg_31.png (不透明度60%)
+                ctx.save();
+                ctx.globalAlpha = 0.6;
+                ctx.drawImage(pictureBgImg, x, y, currentFW, currentFH);
+                ctx.restore();
+
+                // 2. キャスト写真
+                const photoOffsetY = (currentFH - currentCH) / 2;
+                if (data && data.image) {
+                    const castImg = await loadImage(data.image);
+                    const castY = y + photoOffsetY;
+                    ctx.drawImage(castImg, x, castY, currentCW, currentCH);
+                }
+
+                // 3. frame_31.png
+                ctx.drawImage(frameImg, x, y, currentFW, currentFH);
+
+                // テキストを白色に設定
+                ctx.fillStyle = '#ffffff';
+
+                // 4. coming soon (フレームのど真ん中)
+                if (!data || !data.image) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.5;
+                    ctx.font = `800 ${25 * scale}px "Shippori Mincho"`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#ffffff'; 
+                    ctx.fillText('coming soon', x + currentFW / 2, y + currentFH / 2);
+                    ctx.restore();
+                }
+
+                // 5. 日付 (day●)
+                ctx.font = `800 ${20 * scale}px "Shippori Mincho"`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`day${currentDay}`, x + currentFW / 2, y + photoOffsetY / 2);
+
+                // 6. 名前
+                if (data && data.name) {
+                    ctx.font = `800 ${25 * scale}px "Shippori Mincho"`;
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(data.name, x + currentFW / 2, y + currentFH - (photoOffsetY / 2));
+                }
+            }
+
+            // 7. logo_31.png の描画
+            const logoImg_loaded = await logoImg;
+            const logoX = (CANVAS_W - logoImg_loaded.width) / 2;
+            ctx.drawImage(logoImg_loaded, logoX, 111);
+
+            canvas.style.display = 'block';
+            downloadBtn.style.display = 'block';
+            canvas.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+            console.error(error);
+            alert('画像の合成に失敗しました。\n../assetsフォルダ内に「_31」がついた画像素材が存在するか確認してください。');
+        } finally {
+            generateBtn.textContent = '画像を生成する';
+        }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+        try {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = '本月間のMVP(31日新仕様・最終調整版).png';
+            link.href = dataUrl;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error(err);
+            alert('画像のダウンロードに失敗しました。');
+        }
+    });
+</script>
+
+</body>
+</html>
