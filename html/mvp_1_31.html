@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MVPメーカー (1日〜15日)</title>
+<title>MVPメーカー (1日〜31日 新仕様・微調整版)</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
         margin: 0;
     }
     .container {
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
         background: white;
         padding: 20px;
@@ -58,15 +58,17 @@
     .btn-download { background-color: #28a745; display: none; }
     .btn-download:hover { background-color: #218838; }
 
-    /* 4x4 グリッドプレビュー */
+    /* 31個のグリッドプレビュー */
     .grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
         margin-bottom: 20px;
     }
     .grid-item {
-        aspect-ratio: 1 / 1.2;
+        width: calc(16% - 8px); 
+        aspect-ratio: 206 / 256;
         border: 2px dashed #ccc;
         border-radius: 8px;
         display: flex;
@@ -78,6 +80,9 @@
         overflow: hidden;
         position: relative;
         text-align: center;
+    }
+    @media (max-width: 600px) {
+        .grid-item { width: calc(25% - 8px); }
     }
     .grid-item:hover { border-color: #007bff; background-color: #f8f9fa; }
     .grid-item img {
@@ -93,11 +98,11 @@
         bottom: 0; left: 0; right: 0;
         background: rgba(0,0,0,0.6);
         color: white;
-        font-size: 12px;
-        padding: 5px 0;
+        font-size: 10px;
+        padding: 4px 0;
         z-index: 2;
     }
-    .grid-item .coming-soon { color: #888; font-size: 14px; }
+    .grid-item .coming-soon { color: #888; font-size: 12px; }
 
     /* モーダル */
     .modal-overlay {
@@ -141,7 +146,7 @@
     #previewCanvas {
         display: none;
         width: 100%;
-        max-width: 320px;
+        max-width: 400px;
         margin: 20px auto;
         border: 1px solid #ccc;
     }
@@ -150,7 +155,7 @@
 <body>
 
 <div class="container">
-    <h1>MVPメーカー (1日〜15日)</h1>
+    <h1>MVPメーカー (1日〜31日 新仕様)</h1>
 
     <div class="controls">
         <label>背景画像 (1080×1920固定)</label>
@@ -189,14 +194,16 @@
 </div>
 
 <script>
-    const TOTAL_DAYS = 15;
+    const TOTAL_DAYS = 31;
     const CANVAS_W = 1080;
     const CANVAS_H = 1920;
-    const CAST_W = 218;
-    const CAST_H = 258;
+    
+    // 写真読み込みのクロップ比率 (206:185)
+    const CROP_W = 206;
+    const CROP_H = 185;
 
-    let mvpData = JSON.parse(localStorage.getItem('savedMvpData_1_15')) || new Array(TOTAL_DAYS).fill(null);
-    let bgImageSrc = localStorage.getItem('savedMvpBg_1_15');
+    let mvpData = JSON.parse(localStorage.getItem('savedMvpData_new31_mod2')) || new Array(TOTAL_DAYS).fill(null);
+    let bgImageSrc = localStorage.getItem('savedMvpBg_new31_mod2');
     let currentIndex = -1;
     let cropper = null;
 
@@ -215,18 +222,20 @@
             div.onclick = () => openModal(i);
             
             const data = mvpData[i];
+            const currentDay = i + 1;
+            
             if (data && data.image) {
                 const img = document.createElement('img');
                 img.src = data.image;
                 const overlay = document.createElement('div');
                 overlay.className = 'overlay';
-                overlay.textContent = `day${i + 1} : ${data.name || '名前なし'}`;
+                overlay.textContent = `day${currentDay} : ${data.name || '名前なし'}`;
                 div.appendChild(img);
                 div.appendChild(overlay);
             } else {
                 const p = document.createElement('span');
                 p.className = 'coming-soon';
-                p.innerHTML = `day${i + 1}<br>coming soon`;
+                p.innerHTML = `day${currentDay}<br>coming soon`;
                 div.appendChild(p);
             }
             gridContainer.appendChild(div);
@@ -241,7 +250,7 @@
         reader.onload = (event) => {
             bgImageSrc = event.target.result;
             try {
-                localStorage.setItem('savedMvpBg_1_15', bgImageSrc);
+                localStorage.setItem('savedMvpBg_new31_mod2', bgImageSrc);
             } catch(e) {}
         };
         reader.readAsDataURL(file);
@@ -253,21 +262,14 @@
         const data = mvpData[index];
         nameInput.value = data ? data.name : '';
         cropperImage.src = '';
-        
-        if (cropper) {
-            cropper.destroy();
-            cropper = null;
-        }
+        if (cropper) { cropper.destroy(); cropper = null; }
         castInput.value = '';
         modalOverlay.style.display = 'flex';
     }
 
     document.getElementById('closeModalBtn').addEventListener('click', () => {
         modalOverlay.style.display = 'none';
-        if (cropper) {
-            cropper.destroy();
-            cropper = null;
-        }
+        if (cropper) { cropper.destroy(); cropper = null; }
     });
 
     castInput.addEventListener('change', (e) => {
@@ -276,12 +278,9 @@
         const reader = new FileReader();
         reader.onload = (event) => {
             cropperImage.src = event.target.result;
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
+            if (cropper) { cropper.destroy(); cropper = null; }
             cropper = new Cropper(cropperImage, {
-                aspectRatio: CAST_W / CAST_H,
+                aspectRatio: CROP_W / CROP_H,
                 viewMode: 1,
                 autoCropArea: 1
             });
@@ -291,42 +290,22 @@
 
     document.getElementById('saveMvpBtn').addEventListener('click', () => {
         let imageData = mvpData[currentIndex] ? mvpData[currentIndex].image : null;
-        
         if (cropper) {
-            const canvas = cropper.getCroppedCanvas({ width: CAST_W, height: CAST_H });
-            if (canvas) {
-                imageData = canvas.toDataURL('image/jpeg', 0.8);
-            }
+            const canvas = cropper.getCroppedCanvas({ width: CROP_W, height: CROP_H });
+            if (canvas) { imageData = canvas.toDataURL('image/jpeg', 0.85); }
         }
-        
-        mvpData[currentIndex] = {
-            image: imageData,
-            name: nameInput.value
-        };
-        
-        try {
-            localStorage.setItem('savedMvpData_1_15', JSON.stringify(mvpData));
-        } catch (error) {}
-        
+        mvpData[currentIndex] = { image: imageData, name: nameInput.value };
+        try { localStorage.setItem('savedMvpData_new31_mod2', JSON.stringify(mvpData)); } catch (e) {}
         renderGrid();
         modalOverlay.style.display = 'none';
     });
 
     document.getElementById('clearMvpBtn').addEventListener('click', () => {
         mvpData[currentIndex] = null;
-        try {
-            localStorage.setItem('savedMvpData_1_15', JSON.stringify(mvpData));
-        } catch (error) {}
-        
+        try { localStorage.setItem('savedMvpData_new31_mod2', JSON.stringify(mvpData)); } catch (e) {}
         renderGrid();
         modalOverlay.style.display = 'none';
     });
-
-    // ----- Canvas画像生成処理 -----
-    const generateBtn = document.getElementById('generateBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const canvas = document.getElementById('previewCanvas');
-    const ctx = canvas.getContext('2d');
 
     function loadImage(src) {
         return new Promise((resolve, reject) => {
@@ -336,6 +315,11 @@
             img.src = src;
         });
     }
+
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
 
     generateBtn.addEventListener('click', async () => {
         if (!bgImageSrc) {
@@ -348,74 +332,95 @@
         try {
             await document.fonts.ready;
 
-            const frameImg = await loadImage('../assets/frame.png');
-            const pictureBgImg = await loadImage('../assets/picture_bg.png');
-            const logoImg = await loadImage('../assets/logo.png');
+            // 新規素材を読み込み
+            const frameImg = await loadImage('../assets/frame_31.png');
+            const pictureBgImg = await loadImage('../assets/picture_bg_31.png');
+            const logoImg = await loadImage('../assets/logo_31.png');
             const bgImg = await loadImage(bgImageSrc);
 
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
             ctx.drawImage(bgImg, 0, 0, CANVAS_W, CANVAS_H);
 
-            const bottomDistances = [1216, 829, 442, 55];
+            // 背景底面からのY座標リスト
+            const bottomDistances = [1312, 1045, 778, 511, 244, 21];
 
+            // 描画ループ (0〜30)
             for (let i = 0; i < TOTAL_DAYS; i++) {
-                const col = i % 4;
-                const row = Math.floor(i / 4);
+                const isRow6 = i >= 25; // 6列目の判定
+                const row = isRow6 ? 5 : Math.floor(i / 5);
+                const col = isRow6 ? (i - 25) : (i % 5);
 
-                const x = 50 + col * (frameImg.width + 10);
+                const scale = isRow6 ? 0.83 : 1.0;
+                
+                // 現在の枠・画像のサイズ
+                const currentFW = 206 * scale;
+                const currentFH = 256 * scale;
+                const currentCW = 206 * scale;
+                const currentCH = 185 * scale;
+
+                // --- 修正箇所：X座標の計算 ---
+                // 左端から5px。間隔は1〜5列目が10px、6列目が8.3px
+                const currentGapX = isRow6 ? 8.3 : 10;
+                const x = 5 + col * (currentFW + currentGapX);
+                // -----------------------------
+                
+                // Y座標: (背景H) - (底からの距離) - (現在のフレームH)
                 const bottomY = bottomDistances[row];
-                const y = CANVAS_H - bottomY - frameImg.height;
+                const y = CANVAS_H - bottomY - currentFH;
 
-                // 1. picture_bg.png の描画 (不透明度60%に修正)
+                const currentDay = i + 1;
+                const data = mvpData[i];
+
+                // 1. picture_bg_31.png (不透明度60%)
                 ctx.save();
                 ctx.globalAlpha = 0.6;
-                ctx.drawImage(pictureBgImg, x, y);
+                ctx.drawImage(pictureBgImg, x, y, currentFW, currentFH);
                 ctx.restore();
 
-                // 2. キャスト写真の描画
-                const data = mvpData[i];
+                // 2. キャスト写真
+                const photoOffsetY = (currentFH - currentCH) / 2;
                 if (data && data.image) {
                     const castImg = await loadImage(data.image);
-                    const castX = x + (frameImg.width - CAST_W) / 2;
-                    const castY = y + 48;
-                    ctx.drawImage(castImg, castX, castY, CAST_W, CAST_H);
+                    const castY = y + photoOffsetY;
+                    ctx.drawImage(castImg, x, castY, currentCW, currentCH);
                 }
 
-                // 3. frame.png の描画
-                ctx.drawImage(frameImg, x, y);
+                // 3. frame_31.png
+                ctx.drawImage(frameImg, x, y, currentFW, currentFH);
 
-                // --- 修正箇所：テキストカラーを白色に変更 ---
+                // テキストを白色に設定
                 ctx.fillStyle = '#ffffff';
 
-                // 4. coming soon の描画
+                // 4. coming soon (フレームのど真ん中)
                 if (!data || !data.image) {
                     ctx.save();
-                    ctx.globalAlpha = 0.5; // 白文字の視認性向上のため50%に変更
-                    ctx.font = '800 30px "Shippori Mincho"';
+                    ctx.globalAlpha = 0.5;
+                    ctx.font = `800 ${25 * scale}px "Shippori Mincho"`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText('coming soon', x + frameImg.width / 2, y + frameImg.height / 2);
+                    ctx.fillStyle = '#ffffff'; 
+                    ctx.fillText('coming soon', x + currentFW / 2, y + currentFH / 2);
                     ctx.restore();
                 }
 
-                // 5. 日付の描画 (上から10px位置)
-                ctx.font = '800 30px "Shippori Mincho"';
+                // 5. 日付 (day●)
+                ctx.font = `800 ${20 * scale}px "Shippori Mincho"`;
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillText(`day${i + 1}`, x + frameImg.width / 2, y + 10);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`day${currentDay}`, x + currentFW / 2, y + photoOffsetY / 2);
 
-                // 6. 名前の描画
+                // 6. 名前
                 if (data && data.name) {
-                    ctx.font = '800 35px "Shippori Mincho"';
-                    ctx.textBaseline = 'bottom';
-                    ctx.fillText(data.name, x + frameImg.width / 2, y + frameImg.height - 13);
+                    ctx.font = `800 ${25 * scale}px "Shippori Mincho"`;
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(data.name, x + currentFW / 2, y + currentFH - (photoOffsetY / 2));
                 }
             }
 
-            // 7. logo.png の描画
-            const logoX = (CANVAS_W - logoImg.width) / 2;
-            ctx.drawImage(logoImg, logoX, 76);
+            // 7. logo_31.png の描画
+            const logoImg_loaded = await logoImg;
+            const logoX = (CANVAS_W - logoImg_loaded.width) / 2;
+            ctx.drawImage(logoImg_loaded, logoX, 111);
 
             canvas.style.display = 'block';
             downloadBtn.style.display = 'block';
@@ -423,7 +428,7 @@
 
         } catch (error) {
             console.error(error);
-            alert('画像の合成に失敗しました。');
+            alert('画像の合成に失敗しました。\n../assetsフォルダ内に「_31」がついた画像素材が存在するか確認してください。');
         } finally {
             generateBtn.textContent = '画像を生成する';
         }
@@ -433,13 +438,15 @@
         try {
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
-            link.download = '本日のMVP(1-15日).png';
+            link.download = '本月間のMVP(31日新仕様・最終調整版).png';
             link.href = dataUrl;
+            
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         } catch (err) {
             console.error(err);
+            alert('画像のダウンロードに失敗しました。');
         }
     });
 </script>

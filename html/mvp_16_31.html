@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MVPメーカー (1日〜15日)</title>
+<title>MVPメーカー (16日〜31日)</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,7 +150,7 @@
 <body>
 
 <div class="container">
-    <h1>MVPメーカー (1日〜15日)</h1>
+    <h1>MVPメーカー (16日〜31日)</h1>
 
     <div class="controls">
         <label>背景画像 (1080×1920固定)</label>
@@ -189,14 +189,14 @@
 </div>
 
 <script>
-    const TOTAL_DAYS = 15;
+    const TOTAL_DAYS = 16;
     const CANVAS_W = 1080;
     const CANVAS_H = 1920;
     const CAST_W = 218;
     const CAST_H = 258;
 
-    let mvpData = JSON.parse(localStorage.getItem('savedMvpData_1_15')) || new Array(TOTAL_DAYS).fill(null);
-    let bgImageSrc = localStorage.getItem('savedMvpBg_1_15');
+    let mvpData = JSON.parse(localStorage.getItem('savedMvpData_16_31')) || new Array(TOTAL_DAYS).fill(null);
+    let bgImageSrc = localStorage.getItem('savedMvpBg_16_31');
     let currentIndex = -1;
     let cropper = null;
 
@@ -215,18 +215,20 @@
             div.onclick = () => openModal(i);
             
             const data = mvpData[i];
+            const currentDay = i + 16;
+            
             if (data && data.image) {
                 const img = document.createElement('img');
                 img.src = data.image;
                 const overlay = document.createElement('div');
                 overlay.className = 'overlay';
-                overlay.textContent = `day${i + 1} : ${data.name || '名前なし'}`;
+                overlay.textContent = `day${currentDay} : ${data.name || '名前なし'}`;
                 div.appendChild(img);
                 div.appendChild(overlay);
             } else {
                 const p = document.createElement('span');
                 p.className = 'coming-soon';
-                p.innerHTML = `day${i + 1}<br>coming soon`;
+                p.innerHTML = `day${currentDay}<br>coming soon`;
                 div.appendChild(p);
             }
             gridContainer.appendChild(div);
@@ -241,7 +243,7 @@
         reader.onload = (event) => {
             bgImageSrc = event.target.result;
             try {
-                localStorage.setItem('savedMvpBg_1_15', bgImageSrc);
+                localStorage.setItem('savedMvpBg_16_31', bgImageSrc);
             } catch(e) {}
         };
         reader.readAsDataURL(file);
@@ -249,7 +251,8 @@
 
     function openModal(index) {
         currentIndex = index;
-        modalTitle.textContent = `day${index + 1} のMVP設定`;
+        const currentDay = index + 16;
+        modalTitle.textContent = `day${currentDay} のMVP設定`;
         const data = mvpData[index];
         nameInput.value = data ? data.name : '';
         cropperImage.src = '';
@@ -305,7 +308,7 @@
         };
         
         try {
-            localStorage.setItem('savedMvpData_1_15', JSON.stringify(mvpData));
+            localStorage.setItem('savedMvpData_16_31', JSON.stringify(mvpData));
         } catch (error) {}
         
         renderGrid();
@@ -315,7 +318,7 @@
     document.getElementById('clearMvpBtn').addEventListener('click', () => {
         mvpData[currentIndex] = null;
         try {
-            localStorage.setItem('savedMvpData_1_15', JSON.stringify(mvpData));
+            localStorage.setItem('savedMvpData_16_31', JSON.stringify(mvpData));
         } catch (error) {}
         
         renderGrid();
@@ -350,7 +353,7 @@
 
             const frameImg = await loadImage('../assets/frame.png');
             const pictureBgImg = await loadImage('../assets/picture_bg.png');
-            const logoImg = await loadImage('../assets/logo.png');
+            const logoImg = await loadImage('../assets/logo_16.png');
             const bgImg = await loadImage(bgImageSrc);
 
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -361,6 +364,7 @@
             for (let i = 0; i < TOTAL_DAYS; i++) {
                 const col = i % 4;
                 const row = Math.floor(i / 4);
+                const currentDay = i + 16;
 
                 const x = 50 + col * (frameImg.width + 10);
                 const bottomY = bottomDistances[row];
@@ -399,11 +403,11 @@
                     ctx.restore();
                 }
 
-                // 5. 日付の描画 (上から10px位置)
+                // 5. 日付の描画
                 ctx.font = '800 30px "Shippori Mincho"';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
-                ctx.fillText(`day${i + 1}`, x + frameImg.width / 2, y + 10);
+                ctx.fillText(`day${currentDay}`, x + frameImg.width / 2, y + 10);
 
                 // 6. 名前の描画
                 if (data && data.name) {
@@ -433,7 +437,7 @@
         try {
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
-            link.download = '本日のMVP(1-15日).png';
+            link.download = '本日のMVP(16-31日).png';
             link.href = dataUrl;
             document.body.appendChild(link);
             link.click();
