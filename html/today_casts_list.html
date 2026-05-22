@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>出勤表メーカー（3〜6枚自動判別版）</title>
+<title>出勤表メーカー（3〜16枚対応版）</title>
 <style>
     body {
         font-family: sans-serif;
@@ -20,7 +20,7 @@
     }
     h1 { font-size: 20px; text-align: center; margin-bottom: 25px; }
     .box {
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         padding: 15px;
         border: 1px solid #ddd;
         border-radius: 5px;
@@ -61,15 +61,14 @@
     <h1>出勤表メーカー</h1>
 
     <div class="box">
-        <label>① 背景画像を選択 (960×1706)</label>
+        <label>背景画像を選択 (960×1706)</label>
         <input type="file" id="bgInput" accept="image/*">
-        <p style="font-size: 12px; color: #666;">※一度選択すると次回から自動で読み込まれます（変更可）</p>
     </div>
 
     <div class="box">
-        <label>② キャスト写真を選択 (720×872)</label>
+        <label>キャスト写真を選択 (720×872)</label>
         <input type="file" id="castInput" accept="image/*" multiple>
-        <p style="font-size: 12px; color: #666;">※3枚〜6枚の範囲で、配置したい順番に複数選択してください</p>
+        <p style="font-size: 12px; color: #666; margin-top: 5px;">※3枚〜16枚の範囲で複数選択してください</p>
     </div>
 
     <button id="generateBtn">画像を生成する</button>
@@ -82,70 +81,178 @@
 </div>
 
 <script>
-    // 全体共通の背景サイズ
     const BG_W = 960;
     const BG_H = 1706;
 
-    // --- 各枚数におけるキャスト写真のサイズ定義 ---
-    // 3枚・4枚用 (9/20 サイズ)
+    // --- キャスト写真サイズ定義 ---
     const CAST_W_9_20 = 720 * (9 / 20); // 324px
     const CAST_H_9_20 = 872 * (9 / 20); // 392.4px
 
-    // 5枚・6枚用 (39/100 サイズ)
     const CAST_W_39_100 = 720 * (39 / 100); // 280.8px
     const CAST_H_39_100 = 872 * (39 / 100); // 340.08px
 
+    const CAST_W_75 = CAST_W_39_100 * 0.75; // 210.6px
+    const CAST_H_75 = CAST_H_39_100 * 0.75; // 255.06px
 
-    // --- 各枚数ごとの配置座標データ（Canvas基準の左上座標に変換済） ---
-    const layoutSettings = {
-        // 3枚配置の仕様
-        3: {
-            width: CAST_W_9_20,
-            height: CAST_H_9_20,
-            positions: [
-                { x: (BG_W - CAST_W_9_20) / 2, y: BG_H - 750 - CAST_H_9_20 }, // 1番 (中央・下750)
-                { x: 127,                      y: BG_H - 303 - CAST_H_9_20 }, // 2番 (左端127・下303)
-                { x: BG_W - 127 - CAST_W_9_20, y: BG_H - 303 - CAST_H_9_20 }  // 3番 (右端127・下303)
-            ]
-        },
-        // 4枚配置の仕様（前回分）
-        4: {
-            width: CAST_W_9_20,
-            height: CAST_H_9_20,
-            positions: [
-                { x: 127,                      y: BG_H - 750 - CAST_H_9_20 }, // 1番
-                { x: BG_W - 127 - CAST_W_9_20, y: BG_H - 750 - CAST_H_9_20 }, // 2番
-                { x: 127,                      y: BG_H - 303 - CAST_H_9_20 }, // 3番
-                { x: BG_W - 127 - CAST_W_9_20, y: BG_H - 303 - CAST_H_9_20 }  // 4番
-            ]
-        },
-        // 5枚配置の仕様
-        5: {
-            width: CAST_W_39_100,
-            height: CAST_H_39_100,
-            positions: [
-                { x: 37,                         y: BG_H - 754 - CAST_H_39_100 }, // 1番 (左端37・下754)
-                { x: (BG_W - CAST_W_39_100) / 2, y: BG_H - 754 - CAST_H_39_100 }, // 2番 (中央・下754)
-                { x: BG_W - 37 - CAST_W_39_100,  y: BG_H - 754 - CAST_H_39_100 }, // 3番 (右端37・下754)
-                { x: 178,                        y: BG_H - 318 - CAST_H_39_100 }, // 4番 (左端178・下318)
-                { x: BG_W - 178 - CAST_W_39_100, y: BG_H - 318 - CAST_H_39_100 }  // 5番 (右端178・下318)
-            ]
-        },
-        // 6枚配置の仕様
-        6: {
-            width: CAST_W_39_100,
-            height: CAST_H_39_100,
-            positions: [
-                { x: 37,                         y: BG_H - 754 - CAST_H_39_100 }, // 1番 (左端37・下754)
-                { x: (BG_W - CAST_W_39_100) / 2, y: BG_H - 754 - CAST_H_39_100 }, // 2番 (中央・下754)
-                { x: BG_W - 37 - CAST_W_39_100,  y: BG_H - 754 - CAST_H_39_100 }, // 3番 (右端37・下754)
-                { x: 37,                         y: BG_H - 318 - CAST_H_39_100 }, // 4番 (左端37・下318)
-                { x: (BG_W - CAST_W_39_100) / 2, y: BG_H - 318 - CAST_H_39_100 }, // 5番 (中央・下318)
-                { x: BG_W - 37 - CAST_W_39_100,  y: BG_H - 318 - CAST_H_39_100 }  // 6番 (右端37・下318)
-            ]
-        }
+    // --- 座標計算のヘルパー関数 ---
+    const getY = (bottom, h) => BG_H - bottom - h;
+    const getXCenter = (w) => (BG_W - w) / 2;
+    const getXRight = (right, w) => BG_W - right - w;
+    const getXMid = (x1, x2) => (x1 + x2) / 2;
+
+    // --- 全レイアウトパターンの生成 ---
+    const layoutSettings = {};
+
+    // [3〜6枚] 既存ロジック
+    layoutSettings[3] = {
+        width: CAST_W_9_20, height: CAST_H_9_20,
+        positions: [
+            { x: getXCenter(CAST_W_9_20), y: getY(750, CAST_H_9_20) },
+            { x: 127,                     y: getY(303, CAST_H_9_20) },
+            { x: getXRight(127, CAST_W_9_20), y: getY(303, CAST_H_9_20) }
+        ]
+    };
+    layoutSettings[4] = {
+        width: CAST_W_9_20, height: CAST_H_9_20,
+        positions: [
+            { x: 127,                     y: getY(750, CAST_H_9_20) },
+            { x: getXRight(127, CAST_W_9_20), y: getY(750, CAST_H_9_20) },
+            { x: 127,                     y: getY(303, CAST_H_9_20) },
+            { x: getXRight(127, CAST_W_9_20), y: getY(303, CAST_H_9_20) }
+        ]
+    };
+    layoutSettings[5] = {
+        width: CAST_W_39_100, height: CAST_H_39_100,
+        positions: [
+            { x: 37,                        y: getY(754, CAST_H_39_100) },
+            { x: getXCenter(CAST_W_39_100), y: getY(754, CAST_H_39_100) },
+            { x: getXRight(37, CAST_W_39_100), y: getY(754, CAST_H_39_100) },
+            { x: 178,                       y: getY(318, CAST_H_39_100) },
+            { x: getXRight(178, CAST_W_39_100), y: getY(318, CAST_H_39_100) }
+        ]
+    };
+    layoutSettings[6] = {
+        width: CAST_W_39_100, height: CAST_H_39_100,
+        positions: [
+            { x: 37,                        y: getY(754, CAST_H_39_100) },
+            { x: getXCenter(CAST_W_39_100), y: getY(754, CAST_H_39_100) },
+            { x: getXRight(37, CAST_W_39_100), y: getY(754, CAST_H_39_100) },
+            { x: 37,                        y: getY(318, CAST_H_39_100) },
+            { x: getXCenter(CAST_W_39_100), y: getY(318, CAST_H_39_100) },
+            { x: getXRight(37, CAST_W_39_100), y: getY(318, CAST_H_39_100) }
+        ]
     };
 
+    // [7〜9枚]
+    const y7_row1 = getY(875, CAST_H_39_100);
+    const y7_row2 = getY(509, CAST_H_39_100);
+    const y7_row3 = getY(143, CAST_H_39_100);
+    const x7_cols = [37, getXCenter(CAST_W_39_100), getXRight(37, CAST_W_39_100)];
+    const pos7_base = [
+        { x: x7_cols[0], y: y7_row1 }, { x: x7_cols[1], y: y7_row1 }, { x: x7_cols[2], y: y7_row1 },
+        { x: x7_cols[0], y: y7_row2 }, { x: x7_cols[1], y: y7_row2 }, { x: x7_cols[2], y: y7_row2 }
+    ];
+
+    layoutSettings[7] = {
+        width: CAST_W_39_100, height: CAST_H_39_100,
+        positions: [...pos7_base, { x: x7_cols[1], y: y7_row3 }]
+    };
+    layoutSettings[8] = {
+        width: CAST_W_39_100, height: CAST_H_39_100,
+        positions: [
+            ...pos7_base,
+            { x: getXMid(x7_cols[0], x7_cols[1]), y: y7_row3 },
+            { x: getXMid(x7_cols[1], x7_cols[2]), y: y7_row3 }
+        ]
+    };
+    layoutSettings[9] = {
+        width: CAST_W_39_100, height: CAST_H_39_100,
+        positions: [
+            ...pos7_base,
+            { x: x7_cols[0], y: y7_row3 }, { x: x7_cols[1], y: y7_row3 }, { x: x7_cols[2], y: y7_row3 }
+        ]
+    };
+
+    // [10〜12枚]
+    const y10_row1 = getY(937, CAST_H_75);
+    const y10_row2 = getY(644, CAST_H_75);
+    const y10_row3 = getY(351, CAST_H_75);
+    const y10_row4 = getY(58, CAST_H_75);
+    const x10_cols = [126, getXCenter(CAST_W_75), getXRight(126, CAST_W_75)];
+    const pos10_base = [
+        { x: x10_cols[0], y: y10_row1 }, { x: x10_cols[1], y: y10_row1 }, { x: x10_cols[2], y: y10_row1 },
+        { x: x10_cols[0], y: y10_row2 }, { x: x10_cols[1], y: y10_row2 }, { x: x10_cols[2], y: y10_row2 },
+        { x: x10_cols[0], y: y10_row3 }, { x: x10_cols[1], y: y10_row3 }, { x: x10_cols[2], y: y10_row3 }
+    ];
+
+    layoutSettings[10] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [...pos10_base, { x: x10_cols[1], y: y10_row4 }]
+    };
+    layoutSettings[11] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [
+            ...pos10_base,
+            { x: getXMid(x10_cols[0], x10_cols[1]), y: y10_row4 },
+            { x: getXMid(x10_cols[1], x10_cols[2]), y: y10_row4 }
+        ]
+    };
+    layoutSettings[12] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [
+            ...pos10_base,
+            { x: x10_cols[0], y: y10_row4 }, { x: x10_cols[1], y: y10_row4 }, { x: x10_cols[2], y: y10_row4 }
+        ]
+    };
+
+    // [13〜16枚]
+    const y13_row1 = getY(954, CAST_H_75);
+    const y13_row2 = getY(679, CAST_H_75);
+    const y13_row3 = getY(404, CAST_H_75);
+    const y13_row4 = getY(129, CAST_H_75);
+    const x13_cols = [
+        34,
+        34 + CAST_W_75 + 16.5,
+        34 + (CAST_W_75 + 16.5) * 2,
+        34 + (CAST_W_75 + 16.5) * 3
+    ];
+    const pos13_base = [
+        { x: x13_cols[0], y: y13_row1 }, { x: x13_cols[1], y: y13_row1 }, { x: x13_cols[2], y: y13_row1 }, { x: x13_cols[3], y: y13_row1 },
+        { x: x13_cols[0], y: y13_row2 }, { x: x13_cols[1], y: y13_row2 }, { x: x13_cols[2], y: y13_row2 }, { x: x13_cols[3], y: y13_row2 },
+        { x: x13_cols[0], y: y13_row3 }, { x: x13_cols[1], y: y13_row3 }, { x: x13_cols[2], y: y13_row3 }, { x: x13_cols[3], y: y13_row3 }
+    ];
+
+    layoutSettings[13] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [...pos13_base, { x: getXCenter(CAST_W_75), y: y13_row4 }]
+    };
+    layoutSettings[14] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [
+            ...pos13_base,
+            { x: x13_cols[1], y: y13_row4 },
+            { x: x13_cols[2], y: y13_row4 }
+        ]
+    };
+    layoutSettings[15] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [
+            ...pos13_base,
+            { x: getXMid(x13_cols[0], x13_cols[1]), y: y13_row4 },
+            { x: getXMid(x13_cols[1], x13_cols[2]), y: y13_row4 },
+            { x: getXMid(x13_cols[2], x13_cols[3]), y: y13_row4 }
+        ]
+    };
+    layoutSettings[16] = {
+        width: CAST_W_75, height: CAST_H_75,
+        positions: [
+            ...pos13_base,
+            { x: x13_cols[0], y: y13_row4 }, { x: x13_cols[1], y: y13_row4 },
+            { x: x13_cols[2], y: y13_row4 }, { x: x13_cols[3], y: y13_row4 }
+        ]
+    };
+
+    // --- メイン処理 ---
     const bgInput = document.getElementById('bgInput');
     const castInput = document.getElementById('castInput');
     const generateBtn = document.getElementById('generateBtn');
@@ -155,7 +262,6 @@
 
     let bgImageSrc = localStorage.getItem('savedBgImage');
 
-    // 背景画像の記憶処理
     bgInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -164,14 +270,11 @@
             bgImageSrc = event.target.result;
             try {
                 localStorage.setItem('savedBgImage', bgImageSrc);
-            } catch (err) {
-                console.warn('画像サイズが大きいためブラウザに保存できませんでした');
-            }
+            } catch (err) {}
         };
         reader.readAsDataURL(file);
     });
 
-    // 画像読み込みプロミス
     function loadImage(src) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -181,7 +284,6 @@
         });
     }
 
-    // 生成処理
     generateBtn.addEventListener('click', async () => {
         if (!bgImageSrc) {
             alert('背景画像を選択してください。');
@@ -191,52 +293,39 @@
         const files = castInput.files;
         const count = files.length;
 
-        // 3枚〜6枚の間であるかチェック
-        if (count < 3 || count > 6) {
-            alert('キャスト写真は3枚〜6枚の範囲で選択してください。（現在は ' + count + ' 枚選択されています）');
+        if (count < 3 || count > 16) {
+            alert('キャスト写真は3枚〜16枚選択してください。');
             return;
         }
 
-        // 該当する枚数のレイアウト設定を取得
         const currentLayout = layoutSettings[count];
 
         try {
-            // 1. 背景画像の描画
             const bgImg = await loadImage(bgImageSrc);
             ctx.clearRect(0, 0, BG_W, BG_H);
             ctx.drawImage(bgImg, 0, 0, BG_W, BG_H);
 
-            // 2. 選択されたキャスト写真を順番に描画
             for (let i = 0; i < count; i++) {
-                const file = files[i];
                 const reader = new FileReader();
-                
                 const fileSrc = await new Promise((resolve) => {
                     reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(file);
+                    reader.readAsDataURL(files[i]);
                 });
 
                 const castImg = await loadImage(fileSrc);
-                
-                // 現在の枚数用の設定から、座標とサイズを取得して描画
                 const pos = currentLayout.positions[i];
                 ctx.drawImage(castImg, pos.x, pos.y, currentLayout.width, currentLayout.height);
             }
 
-            // プレビューとダウンロードボタンを表示
             canvas.style.display = 'block';
             downloadBtn.style.display = 'block';
-            
-            // 画面をプレビュー位置までスムーズスクロール（スマホ向け操作性向上）
             canvas.scrollIntoView({ behavior: 'smooth' });
-
         } catch (error) {
-            alert('画像の合成に失敗しました。画像の形式等を確認してください。');
+            alert('画像の合成に失敗しました。');
             console.error(error);
         }
     });
 
-    // ダウンロード処理
     downloadBtn.addEventListener('click', () => {
         const link = document.createElement('a');
         link.download = '本日の出勤表.png';
